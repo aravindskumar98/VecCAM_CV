@@ -7,8 +7,6 @@ Gender Classification
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import time
-import random
 import math
 import os
 import torch
@@ -24,12 +22,16 @@ from sklearn.metrics import confusion_matrix
 from torch.utils.data import Dataset
 from collections import Counter
 
+
+available_gpus = [torch.cuda.device(i) for i in range(torch.cuda.device_count())]
+print(available_gpus)
+
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
-    print("running on the GPU")
+    print ("running on the GPU")
 else:
     device = torch.device("cpu")
-    print("running on the cpu")
+    print ("running on the cpu")
 
 
 class VectorCamDataset(Dataset):
@@ -65,7 +67,7 @@ invTrans = transforms.Compose([
     transforms.ColorJitter()
 ])
 
-EPOCHS = 50
+EPOCHS = 30
 gender_all = ["female", "male"]
 
 
@@ -136,7 +138,7 @@ def train(train_dataloader, test_dataloader, i):
         if (valid_correct / valid_total) > max_val:
             max_val = valid_correct / valid_total
             print("saved")
-            torch.save(model, 'model/gender/M1_M2_M3/gender_fold' + str(i) + '.pt')
+            torch.save(model, 'model/sex/M5/sex_fold' + str(i) + '.pt')
     return train_loss, valid_loss, train_acc, valid_acc
 
 
@@ -182,6 +184,7 @@ def visualize(true_label, predicted_label, fold=None):
     conf_mat = np.round(conf_mat, decimals=2)
     fig = plt.figure(figsize=(8, 8))
     ax = plt.subplot()
+    # hm = sn.heatmap(conf_mat, annot=True, ax=ax, cmap="PuBu", fmt='d')
     hm = sn.heatmap(conf_mat, annot=True, ax=ax, cmap="PuBu", fmt='.2', annot_kws={"size": 35 / np.sqrt(len(conf_mat))})
     ax.set_yticklabels(hm.get_yticklabels(), rotation=90)
     ax.set_xlabel('Predicted labels', fontsize=15)
@@ -190,19 +193,25 @@ def visualize(true_label, predicted_label, fold=None):
     ax.yaxis.set_ticklabels(gender_all)
     plt.xticks(rotation=90)
     plt.yticks(rotation=0)
-    if fold:
-        plt.title('gender_fold' + str(fold))
-    plt.title('gender_test_majority_0.8')
-    plt.show()
-    # plt.savefig('model/gender/gender_fold' + str(fold) + '.png')
+    # if fold:
+    #     plt.title('sex_test_0.9_fold' + str(fold))
+    #plt.title('sex_CV_result_0.9')
+    plt.savefig(f'model/sex/M5/sex_test_0.8_fold_{fold}.png')
+    # plt.show()
+    # plt.savefig('model/sex/M1_M2_finetune/sex_test_0.9_fold' + str(fold) + '.png')
 
 
-iftrain = False
-majority = True
+iftrain = True
+majority = False
+
+true_all = []
+predicted_all = []
 if iftrain:
     for i in range(1, 6):
         # initialize the model
-        model = models.efficientnet_b1(pretrained=True)
+        # model = models.efficientnet_b1(pretrained=True)
+
+        model = torch.load('model/sex/M1_M2/sex_fold2.pt')
         # print(model)
         model.classifier = nn.Sequential(
             nn.Dropout(p=0.2, inplace=True),
@@ -215,54 +224,67 @@ if iftrain:
         # train
         print("In loop")
 
-        M1_train_data_path = f"data/gender/CV_1_M1/train_data_fold{i}.pt"
-        M1_train_label_path = f"data/gender/CV_1_M1/train_label_fold{i}.pt"
-        M2_train_data_path = f"data/gender/CV_1_M2/train_data_fold{i}.pt"
-        M2_train_label_path = f"data/gender/CV_1_M2/train_label_fold{i}.npy"
-        M3_train_data_path = f"data/gender/CV_1_M3/train_data_fold{i}.pt"
-        M3_train_label_path = f"data/gender/CV_1_M3/train_label_fold{i}.npy"
+        # M1_train_data_path = f"data/sex/CV_1_M1/train_data_fold{i}.pt"
+        # M1_train_label_path = f"data/sex/CV_1_M1/train_label_fold{i}.pt"
+        # M2_train_data_path = f"data/sex/CV_1_M2/train_data_fold{i}.pt"
+        # M2_train_label_path = f"data/sex/CV_1_M2/train_label_fold{i}.npy"
+        # M3_train_data_path = f"data/gender/CV_1_M3/train_data_fold{i}.pt"
+        # M3_train_label_path = f"data/gender/CV_1_M3/train_label_fold{i}.npy"
+        M5_train_data_path = f"data/gender/CV_1_M5/train_data_fold{i}.pt"
+        M5_train_label_path = f"data/gender/CV_1_M5/train_label_fold{i}.pt"
 
-        M1_train_data = torch.load(M1_train_data_path)
-        M1_train_label = torch.load(M1_train_label_path)
-        M2_train_data = torch.load(M2_train_data_path)
-        M2_train_label = np.load(M2_train_label_path, allow_pickle=True)
-        M2_train_label = M2_train_label.item()
-        M2_train_label = torch.tensor(M2_train_label["gender"])
-        M3_train_data = torch.load(M3_train_data_path)
-        M3_train_label = np.load(M3_train_label_path, allow_pickle=True)
-        M3_train_label = M3_train_label.item()
-        M3_train_label = torch.tensor(M3_train_label["gender"])
+        # M1_train_data = torch.load(M1_train_data_path)
+        # M1_train_label = torch.load(M1_train_label_path)
+        # M2_train_data = torch.load(M2_train_data_path)
+        # M2_train_label = np.load(M2_train_label_path, allow_pickle=True)
+        # M2_train_label = M2_train_label.item()
+        # M2_train_label = torch.tensor(M2_train_label["gender"])
+        # M3_train_data = torch.load(M3_train_data_path)
+        # M3_train_label = np.load(M3_train_label_path, allow_pickle=True)
+        # M3_train_label = M3_train_label.item()
+        # M3_train_label = torch.tensor(M3_train_label["gender"])
+        train_data = torch.load(M5_train_data_path)
+        train_label = torch.load(M5_train_label_path)
 
         # val
 
-        M1_val_data_path = f"data/gender/CV_1_M1/val_data_fold{i}.pt"
-        M1_val_label_path = f"data/gender/CV_1_M1/val_label_fold{i}.pt"
-        M2_val_data_path = f"data/gender/CV_1_M2/val_data_fold{i}.pt"
-        M2_val_label_path = f"data/gender/CV_1_M2/val_label_fold{i}.npy"
-        M3_val_data_path = f"data/gender/CV_1_M3/val_data_fold{i}.pt"
-        M3_val_label_path = f"data/gender/CV_1_M3/val_label_fold{i}.npy"
+        # M1_val_data_path = f"data/sex/CV_1_M1/test_data_fold{i}.pt"
+        # M1_val_label_path = f"data/sex/CV_1_M1/test_label_fold{i}.pt"
+        # M2_val_data_path = f"data/sex/CV_1_M2/test_data_fold{i}.pt"
+        # M2_val_label_path = f"data/sex/CV_1_M2/test_label_fold{i}.npy"
+        # M3_val_data_path = f"data/gender/CV_1_M3/val_data_fold{i}.pt"
+        # M3_val_label_path = f"data/gender/CV_1_M3/val_label_fold{i}.npy"
+        M5_val_data_path = f"data/gender/CV_1_M5/test_data_fold{i}.pt"
+        M5_val_label_path = f"data/gender/CV_1_M5/test_label_fold{i}.pt"
 
-        M1_val_data = torch.load(M1_val_data_path)
-        M1_val_label = torch.load(M1_val_label_path)
-        M2_val_data = torch.load(M2_val_data_path)
-        M2_val_label = np.load(M2_val_label_path, allow_pickle=True)
-        M2_val_label = M2_val_label.item()
-        M2_val_label = torch.tensor(M2_val_label["gender"])
-        M3_val_data = torch.load(M3_val_data_path)
-        M3_val_label = np.load(M3_val_label_path, allow_pickle=True)
-        M3_val_label = M3_val_label.item()
-        M3_val_label = torch.tensor(M3_val_label["gender"])
+        # M1_val_data = torch.load(M1_val_data_path)
+        # M1_val_label = torch.load(M1_val_label_path)
+        # M2_val_data = torch.load(M2_val_data_path)
+        # M2_val_label = np.load(M2_val_label_path, allow_pickle=True)
+        # M2_val_label = M2_val_label.item()
+        # M2_val_label = torch.tensor(M2_val_label["gender"])
+        # M3_val_data = torch.load(M3_val_data_path)
+        # M3_val_label = np.load(M3_val_label_path, allow_pickle=True)
+        # M3_val_label = M3_val_label.item()
+        # M3_val_label = torch.tensor(M3_val_label["gender"])
+        test_data = torch.load(M5_val_data_path)
+        test_label = torch.load(M5_val_label_path)
 
         # plt.imshow(torch.permute(M2_val_data[0], (1, 2, 0)))
         # plt.show()
 
         # Concatenate 2 sets - M1, M2
 
-        train_data = torch.cat((M1_train_data, M2_train_data, M3_train_data), 0)
-        test_data = torch.cat((M1_val_data, M2_val_data, M3_val_data), 0)
+        # train_data = torch.cat((M1_train_data, M2_train_data), 0)
+        # test_data = torch.cat((M1_val_data, M2_val_data), 0)
+        #
+        # train_label = torch.cat((M1_train_label, M2_train_label), 0)
+        # test_label = torch.cat((M1_val_label, M2_val_label), 0)
 
-        train_label = torch.cat((M1_train_label, M2_train_label, M3_train_label), 0)
-        test_label = torch.cat((M1_val_label, M2_val_label, M3_val_label), 0)
+        print('Train data size: ', train_data.shape)
+        print('Train label size: ', train_label.shape)
+        print('Val data size: ', test_data.shape)
+        print('Val label size: ', test_label.shape)
 
         train_dataset = VectorCamDataset(train_data, train_label, transform=invTrans)
         test_dataset = VectorCamDataset(test_data, test_label)
@@ -282,26 +304,58 @@ if iftrain:
         train_dataloader = DataLoader(train_dataset, sampler=weighted_sampler, batch_size=32)
         test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
-        train_loss, valid_loss, train_acc, valid_acc = train(train_dataloader, test_dataloader, i)
+        # train_loss, valid_loss, train_acc, valid_acc = train(train_dataloader, test_dataloader, i)
 
-        test_model = torch.load('model/gender/M1_M2_M3/gender_fold' + str(i) + '.pt')
+        test_model = torch.load('model/sex/M5/sex_fold' + str(i) + '.pt')
 
-        out, _, _ = test(test_dataloader, test_model)
+        # out, _, _ = test(test_dataloader, test_model)
+        #
+        # out = np.concatenate(out)
 
+        # misclassified_index = [i for i in range(len(out)) if out[i] != test_label[i]]
+        # print(misclassified_index)
+        #
+        # count = 0
+
+        # for item in misclassified_index:
+        #     if count < 20:
+        #         plt.imshow(torch.permute(test_dataset[item][0], (1, 2, 0)))
+        #         plt.show()
+        #         count += 1
+
+        out, _, valid = test(test_dataloader, test_model, threshold=0.8)
         out = np.concatenate(out)
-
-        np.save(f"model/gender/M1_M2_M3/val_predicted_label_fold{i}.npy", out)
-        np.save(f"model/gender/M1_M2_M3/val_true_label_fold{i}.npy", test_label)
+        # misclassified_index = [i for i in range(len(out)) if out[i] != test_label[i]]
+        # for idx in misclassified_index:
+        #     plt.title(f"true label {gender_all[int(test_dataset[idx][1])]} predicted label {gender_all[out[idx]]}")
+        #     plt.imshow(torch.permute(test_dataset[idx][0], (1, 2, 0)))
+        #     plt.show()
+        omit_count = np.size(valid) - np.count_nonzero(valid)
+        #
+        print("removed count", omit_count)
+        #
+        out = out[valid]
+        test_label = np.array(test_label)[valid]
 
         visualize(test_label, out, fold=i)
+
+        np.save(f"model/sex/M5/test_predicted_label_fold{i}.npy", out)
+        np.save(f"model/sex/M5/test_true_label_fold{i}.npy", test_label)
+
+        # visualize(test_label, out, fold=i)
+
+        # out = np.load(f"model/sex/M1_M2/test_predicted_label_fold{i}.npy")
+        # true = np.load(f"model/sex/M1_M2/test_true_label_fold{i}.npy")
+        # true_all.extend(list(test_label))
+        # predicted_all.extend(list(out))
 else:
     # test
     M1_test_data_path = f"data/gender/CV_1_M1/test_data.pt"
     M1_test_label_path = f"data/gender/CV_1_M1/test_label.pt"
     M2_test_data_path = f"data/gender/CV_1_M2/test_data.pt"
     M2_test_label_path = f"data/gender/CV_1_M2/test_label.npy"
-    M3_test_data_path = f"data/gender/CV_1_M3/test_data.pt"
-    M3_test_label_path = f"data/gender/CV_1_M3/test_label.npy"
+    # M3_test_data_path = f"data/gender/CV_1_M3/test_data.pt"
+    # M3_test_label_path = f"data/gender/CV_1_M3/test_label.npy"
 
     M1_test_data = torch.load(M1_test_data_path)
     M1_test_label = torch.load(M1_test_label_path)
@@ -309,13 +363,13 @@ else:
     M2_test_label = np.load(M2_test_label_path, allow_pickle=True)
     M2_test_label = M2_test_label.item()
     M2_test_label = torch.tensor(M2_test_label["gender"])
-    M3_test_data = torch.load(M3_test_data_path)
-    M3_test_label = np.load(M3_test_label_path, allow_pickle=True)
-    M3_test_label = M3_test_label.item()
-    M3_test_label = torch.tensor(M3_test_label["gender"])
+    # M3_test_data = torch.load(M3_test_data_path)
+    # M3_test_label = np.load(M3_test_label_path, allow_pickle=True)
+    # M3_test_label = M3_test_label.item()
+    # M3_test_label = torch.tensor(M3_test_label["gender"])
 
-    test_data = torch.cat((M1_test_data, M2_test_data, M3_test_data), 0)
-    test_label = torch.cat((M1_test_label, M2_test_label, M3_test_label), 0)
+    test_data = torch.cat((M1_test_data, M2_test_data), 0)
+    test_label = torch.cat((M1_test_label, M2_test_label), 0)
 
     test_dataset = VectorCamDataset(test_data, test_label)
     test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)
@@ -365,8 +419,8 @@ else:
         visualize(np.array(test_label), final_result)
 
     else:
-        test_model = torch.load('model/gender/M1_M2_M3/gender_fold4.pt')
-        out, _, valid = test(test_dataloader, test_model, threshold=0.5)
+        test_model = torch.load('model/gender/M1_M2/gender_fold4.pt')
+        out, _, valid = test(test_dataloader, test_model, threshold=0.9)
         out = np.concatenate(out)
 
         omit_count = np.size(valid) - np.count_nonzero(valid)
@@ -392,3 +446,5 @@ else:
 # true = np.concatenate([true1, true2, true3, true4, true5])
 # predict = np.concatenate([predict1, predict2, predict3, predict4, predict5])
 # visualize(true, predict)
+
+# visualize(true_all, predicted_all)
